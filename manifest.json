@@ -1,0 +1,8 @@
+{
+  "domain": "bvg",
+  "name": "BVG sensor integration",
+  "documentation": "https://github.com/fluffykraken/bvg-sensor",
+  "requirements": [],
+  "dependencies": [],
+  "codeowners": ["@fluffykraken", "@disrupted"]
+}

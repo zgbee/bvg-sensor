@@ -8,6 +8,8 @@
 # Version 0.3.4 fixed encoding (issue #3), fixed typo in filepath
 # Version 0.4.0 renamed device_state_attributes to extra_state_attributes, added version to manifest, updated API url to v5
 # Version 0.4.1 replaced direction with direction ID, added transit type restriction
+# Version 0.4.2 added retrieval of next train/bus and corresponding _next attributes
+
 
 from urllib.request import urlopen
 import json
@@ -38,6 +40,14 @@ ATTR_TRANS_TYPE_RESTRICTION = "transit_type"
 ATTR_TRIP_ID = "trip"
 ATTR_LINE_NAME = "line_name"
 ATTR_CONNECTION_STATE = "connection_status"
+
+ATTR_STOP_ID_NEXT = "stop_id_next"
+ATTR_STOP_NAME_NEXT = "stop_name_next"
+ATTR_DELAY_NEXT = "delay_next"
+ATTR_REAL_TIME_NEXT = "departure_time_next"
+ATTR_DESTINATION_NEXT = "direction_next"
+ATTR_TRANS_TYPE_NEXT = "type_next"
+ATTR_LINE_NAME_NEXT = "line_name_next"
 
 CONF_NAME = "name"
 CONF_STOP_ID = "stop_id"
@@ -78,7 +88,6 @@ SCAN_INTERVAL = timedelta(seconds=60)
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
     {
         vol.Required(CONF_STOP_ID): cv.string,
-        #vol.Required(CONF_DESTINATION): vol.All(cv.ensure_list, [cv.string]),
         vol.Required(CONF_DIRECTION_ID): cv.string,
         vol.Optional(CONF_TRANS_TYPE_RESTRICTION): cv.string,
         vol.Optional(CONF_MIN_DUE_IN, default=10): cv.positive_int,
@@ -133,6 +142,7 @@ class BvgSensor(Entity):
                     self.url += f"&{mode}=false"
         self.data = None
         self.singleConnection = None
+        self.nextSingleConnection = None
         self.file_path = self.hass_config.get("config_dir") + file_path
         self.file_name = "bvg_{}.json".format(stop_id)
         self._con_state = {CONNECTION_STATE: CON_STATE_ONLINE}
@@ -150,15 +160,40 @@ class BvgSensor(Entity):
     @property
     def extra_state_attributes(self):
         """Return the state attributes."""
-        if self.singleConnection is not None:
+        
+        if self.singleConnection is not None and self.nextSingleConnection is not None:
             return {
                 ATTR_STOP_ID: self._stop_id,
                 ATTR_STOP_NAME: self.singleConnection.get(ATTR_STOP_NAME),
                 ATTR_DELAY: self.singleConnection.get(ATTR_DELAY),
                 ATTR_REAL_TIME: self.singleConnection.get(ATTR_REAL_TIME),
-                ATTR_DIRECTION_ID: self.singleConnection.get(ATTR_DIRECTION_ID),
+                ATTR_DESTINATION: self.singleConnection.get(ATTR_DESTINATION),
                 ATTR_TRANS_TYPE: self.singleConnection.get(ATTR_TRANS_TYPE),
                 ATTR_LINE_NAME: self.singleConnection.get(ATTR_LINE_NAME),
+                
+                ATTR_STOP_NAME_NEXT: self.nextSingleConnection.get(ATTR_STOP_NAME),
+                ATTR_DELAY_NEXT: self.nextSingleConnection.get(ATTR_DELAY),
+                ATTR_REAL_TIME_NEXT: self.nextSingleConnection.get(ATTR_REAL_TIME),
+                ATTR_DESTINATION_NEXT: self.nextSingleConnection.get(ATTR_DESTINATION),
+                ATTR_TRANS_TYPE_NEXT: self.nextSingleConnection.get(ATTR_TRANS_TYPE),
+                ATTR_LINE_NAME_NEXT: self.nextSingleConnection.get(ATTR_LINE_NAME),
+            }
+        elif self.singleConnection is not None:
+            return {
+                ATTR_STOP_ID: self._stop_id,
+                ATTR_STOP_NAME: self.singleConnection.get(ATTR_STOP_NAME),
+                ATTR_DELAY: self.singleConnection.get(ATTR_DELAY),
+                ATTR_REAL_TIME: self.singleConnection.get(ATTR_REAL_TIME),
+                ATTR_DESTINATION: self.singleConnection.get(ATTR_DESTINATION),
+                ATTR_TRANS_TYPE: self.singleConnection.get(ATTR_TRANS_TYPE),
+                ATTR_LINE_NAME: self.singleConnection.get(ATTR_LINE_NAME),
+
+                ATTR_STOP_NAME_NEXT: "n/a",
+                ATTR_DELAY_NEXT: "n/a",
+                ATTR_REAL_TIME_NEXT: "n/a",
+                ATTR_DESTINATION_NEXT: "n/a",
+                ATTR_TRANS_TYPE_NEXT: "n/a",
+                ATTR_LINE_NAME_NEXT: "n/a",
             }
         else:
             return {
@@ -166,9 +201,16 @@ class BvgSensor(Entity):
                 ATTR_STOP_NAME: "n/a",
                 ATTR_DELAY: "n/a",
                 ATTR_REAL_TIME: "n/a",
-                ATTR_DIRECTION_ID: "n/a",
+                ATTR_DESTINATION: "n/a",
                 ATTR_TRANS_TYPE: "n/a",
                 ATTR_LINE_NAME: "n/a",
+
+                ATTR_STOP_NAME_NEXT: "n/a",
+                ATTR_DELAY_NEXT: "n/a",
+                ATTR_REAL_TIME_NEXT: "n/a",
+                ATTR_DESTINATION_NEXT: "n/a",
+                ATTR_TRANS_TYPE_NEXT: "n/a",
+                ATTR_LINE_NAME_NEXT: "n/a",
             }
 
     @property
@@ -192,6 +234,9 @@ class BvgSensor(Entity):
         self.fetchDataFromURL
         self.singleConnection = self.getSingleConnection(
             self.min_due_in, 0
+        )
+        self.nextSingleConnection = self.getSingleConnection(
+            self.min_due_in, 1
         )
         if self.singleConnection is not None and len(self.singleConnection) > 0:
             self._state = self.singleConnection.get(ATTR_DUE_IN)

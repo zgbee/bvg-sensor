@@ -6,6 +6,7 @@
 # Version 0.3.2 bufix for TypeError
 # Version 0.3.3 switched to timezone aware objects, cache_size added to config parameters, optimized logging
 # Version 0.3.4 fixed encoding (issue #3), fixed typo in filepath
+# Version 0.4.0 renamed device_state_attributes to extra_state_attributes, added version to manifest, updated API url to v5
 
 from urllib.request import urlopen
 import json
@@ -102,7 +103,7 @@ class BvgSensor(Entity):
         self._stop_id = stop_id
         self.direction = direction
         self.min_due_in = min_due_in
-        self.url = "https://2.bvg.transport.rest/stations/{}/departures?duration={}".format(
+        self.url = "https://v5.bvg.transport.rest/stops/{}/departures?duration={}".format(
             self._stop_id, self._cache_size
         )
         self.data = None
@@ -122,7 +123,7 @@ class BvgSensor(Entity):
         return self._state
 
     @property
-    def device_state_attributes(self):
+    def extra_state_attributes(self):
         """Return the state attributes."""
         if self.singleConnection is not None:
             return {

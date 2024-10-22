@@ -8,7 +8,7 @@ During testing I found that the API frequently becomes unavailable, possibly to 
 This component uses the API endpoint that provides data from the BVG HAFAS API by [Jannis Redmann](https://github.com/derhuerst/).
 Without his fantastic work, this component would not possible!
 
-This fork from [disrupted/bvg-sensor](https://github.com/disrupted/bvg-sensor) has been updated to use the latest BVG API (currently v6: [documentation](https://v6.bvg.transport.rest/)), and retrieves details for two upcoming departures.
+This fork from [disrupted/bvg-sensor](https://github.com/disrupted/bvg-sensor) has been updated to use the latest BVG API (currently [v6](https://v6.bvg.transport.rest/)), and retrieves details for two upcoming departures.
 
 # Installation
 
@@ -79,7 +79,7 @@ For some routes, multiple transit methods may travel from your ``stop_id`` to yo
 To add the BVG Sensor Component to Home Assistant, add the following to your configuration.yaml file:
 
 ```yaml
-# Example configuration.yaml entry
+# Example configuration.yaml entry structure
 sensor:
   - platform: bvg
     name: U2 Rosa-Luxemburg-Platz
@@ -96,14 +96,28 @@ sensor:
 - **walking_distance** *(optional)*: specify the walking distance in minutes from your home/location to the station. Only connections that are reachable in a timley manner will be shown. Set it to ``0`` if you want to disable this feature. *(Default=10)*
 - **file_path** *(optional)*: path where you want your station specific data to be saved. *(Default= your home assistant config directory e.g. "conf/" )*
 
-### Example Configuration:
+### Sample Configuration:
 ```yaml
 sensor:
   - platform: bvg
     name: U2 to Alexanderplatz
-    stop_id: "900110001" # U Schonhauser
-    direction_id: "900110006" # U Eberswalder
+    stop_id: "900110001" # U Schonhauser ID
+    direction_id: "900110006" # U Eberswalder ID
     transit_type: "subway" # don't include trams or busses
-    walking_distance: 5 #allow 5 minutes of walking to reach station
+    walking_distance: 5 # skip departures less than 5 minutes from now
     file_path: "/tmp/"
 ```
+
+# Available sensor states
+
+Some useful states available from the sensor:
+
+- **stop_name**: BVG station name
+- **due_in**: minutes until departure
+- **delay**: delay from normally scheduled time (will be negative if early)
+- **departure_time**: full date/timestamp for departure time
+- **direction**: final destination
+- **type**: transit type
+- **line_name**: BVG route name
+
+All states can also have ``_next`` appended to their name to retrieve details for the following route. i.e. creating entity cards for both ``due_in`` and ``due_in_next`` would show the next two times.

@@ -9,6 +9,7 @@
 # Version 0.4.0 renamed device_state_attributes to extra_state_attributes, added version to manifest, updated API url to v5
 # Version 0.4.1 replaced direction with direction ID, added transit type restriction
 # Version 0.4.2 added retrieval of next train/bus and corresponding _next attributes
+# Version 0.4.3 updated BVG api to v6
 
 
 from urllib.request import urlopen
@@ -43,6 +44,7 @@ ATTR_CONNECTION_STATE = "connection_status"
 
 ATTR_STOP_ID_NEXT = "stop_id_next"
 ATTR_STOP_NAME_NEXT = "stop_name_next"
+ATTR_DUE_IN_NEXT = "due_in_next"
 ATTR_DELAY_NEXT = "delay_next"
 ATTR_REAL_TIME_NEXT = "departure_time_next"
 ATTR_DESTINATION_NEXT = "direction_next"
@@ -130,7 +132,7 @@ class BvgSensor(Entity):
         self._direction_id = direction_id
         self._transit_type = transit_type
         self.min_due_in = min_due_in
-        self.url = "https://v5.bvg.transport.rest/stops/{}/departures?direction={}&duration={}".format(
+        self.url = "https://v6.bvg.transport.rest/stops/{}/departures?direction={}&duration={}".format(
             self._stop_id, self._direction_id, self._cache_size
         )
         #if transit mode specified, set only specified mode to true
@@ -143,7 +145,7 @@ class BvgSensor(Entity):
         self.data = None
         self.singleConnection = None
         self.nextSingleConnection = None
-        self.file_path = self.hass_config.get("config_dir") + file_path
+        self.file_path = os.path.join(self.hass_config.get("config_dir"), file_path)
         self.file_name = "bvg_{}.json".format(stop_id)
         self._con_state = {CONNECTION_STATE: CON_STATE_ONLINE}
 
@@ -165,6 +167,7 @@ class BvgSensor(Entity):
             return {
                 ATTR_STOP_ID: self._stop_id,
                 ATTR_STOP_NAME: self.singleConnection.get(ATTR_STOP_NAME),
+                ATTR_DUE_IN: self.singleConnection.get(ATTR_DUE_IN),
                 ATTR_DELAY: self.singleConnection.get(ATTR_DELAY),
                 ATTR_REAL_TIME: self.singleConnection.get(ATTR_REAL_TIME),
                 ATTR_DESTINATION: self.singleConnection.get(ATTR_DESTINATION),
@@ -172,6 +175,7 @@ class BvgSensor(Entity):
                 ATTR_LINE_NAME: self.singleConnection.get(ATTR_LINE_NAME),
                 
                 ATTR_STOP_NAME_NEXT: self.nextSingleConnection.get(ATTR_STOP_NAME),
+                ATTR_DUE_IN_NEXT: self.nextSingleConnection.get(ATTR_DUE_IN),
                 ATTR_DELAY_NEXT: self.nextSingleConnection.get(ATTR_DELAY),
                 ATTR_REAL_TIME_NEXT: self.nextSingleConnection.get(ATTR_REAL_TIME),
                 ATTR_DESTINATION_NEXT: self.nextSingleConnection.get(ATTR_DESTINATION),
@@ -182,6 +186,7 @@ class BvgSensor(Entity):
             return {
                 ATTR_STOP_ID: self._stop_id,
                 ATTR_STOP_NAME: self.singleConnection.get(ATTR_STOP_NAME),
+                ATTR_DUE_IN: self.singleConnection.get(ATTR_DUE_IN),
                 ATTR_DELAY: self.singleConnection.get(ATTR_DELAY),
                 ATTR_REAL_TIME: self.singleConnection.get(ATTR_REAL_TIME),
                 ATTR_DESTINATION: self.singleConnection.get(ATTR_DESTINATION),
@@ -231,7 +236,7 @@ class BvgSensor(Entity):
 
         This is the only method that should fetch new data for Home Assistant.
         """
-        self.fetchDataFromURL
+        self.fetchDataFromURL()
         self.singleConnection = self.getSingleConnection(
             self.min_due_in, 0
         )
@@ -244,10 +249,11 @@ class BvgSensor(Entity):
             self._state = "n/a"
 
     # only custom code beyond this line
-    @property
+    # @property
     def fetchDataFromURL(self):
         try:
-            with urlopen(self.url) as response:
+            _LOGGER.warning(f"Attempting to open URL: {self.url}")
+            with urlopen(self.url, timeout=5) as response:
                 source = response.read().decode("utf8")
                 self.data = json.loads(source)
                 if self._con_state.get(CONNECTION_STATE) is CON_STATE_OFFLINE:
@@ -255,10 +261,13 @@ class BvgSensor(Entity):
                     self._con_state.update({CONNECTION_STATE: CON_STATE_ONLINE})
                 # write the response to a file for caching if connection is not available, which seems to happen from time to time
                 try:
+                    _LOGGER.warning("in try about to open file")
                     with open("{}{}".format(self.file_path, self.file_name), "w") as fd:
-                        # self.data = json.load(fd)
-                        json.dump(self.data, fd, ensure_ascii=False)
-                        # json.writes(response)
+                        try:
+                            json.dump(self.data, fd, ensure_ascii=False)
+                        except Exception as e:
+                            _LOGGER.error(f"Error writing data to cache file: {e}")
+
                         self._cache_creation_date = datetime.now(
                             pytz.timezone(self._timezone)
                         )
@@ -269,12 +278,17 @@ class BvgSensor(Entity):
                         )
                     )
                     _LOGGER.error("I/O error({}): {}".format(e.errno, e.strerror))
+        except HTTPError as e:
+            _LOGGER.error(f"HTTPError in fetchDataFromURL: {e.code} - {e.reason}")
         except URLError as e:
+            _LOGGER.error(f"Error in fetchDataFromURL: {e}")
             if self._con_state.get(CONNECTION_STATE) is CON_STATE_ONLINE:
                 _LOGGER.debug(e)
                 _LOGGER.warning("Connection to BVG API lost, using local cache instead")
                 self._con_state.update({CONNECTION_STATE: CON_STATE_OFFLINE})
             self.fetchDataFromFile()
+        except Exception as e:
+            _LOGGER.error(f"Unexpected error in fetchDataFromURL: {e}")
 
     def fetchDataFromFile(self):
         try:
@@ -291,8 +305,9 @@ class BvgSensor(Entity):
     def getSingleConnection(self, min_due_in, nmbr):
         timetable_l = list()
         date_now = datetime.now(pytz.timezone(self.hass_config.get("time_zone")))
-        for pos in self.data:
-            if pos["when"] is None:
+        for pos in self.data["departures"]:
+            if pos.get("when") is None:
+                # skip this step if no departure time
                 continue
             dep_time = datetime.strptime(pos["when"][:-6], "%Y-%m-%dT%H:%M:%S")
             dep_time = pytz.timezone("Europe/Berlin").localize(dep_time)

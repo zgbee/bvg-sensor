@@ -14,6 +14,8 @@ This fork from [disrupted/bvg-sensor](https://github.com/disrupted/bvg-sensor) h
 
 Clone the repository into your ``/config/custom_components/`` folder and rename it from ``bvg-sensor`` to ``bvg``. If it does not already exist, create the missing ``custom_components`` folder.
 
+**0.5.0 Breaking chage:** The component was updated to use a departures object to store multiple future departures, instead of using `_next` to access only one additional departure. See _Fetching future departures_ at the end of this Read Me for an example.
+
 # Prerequisites
 
 You will need to specify at least a ``stop_id`` and a ``direction_id`` for the connection you would like to display. Both values are the ``id`` number of a station, can be found by using the BVG API to search by geolocation or station name. The JSON object returned by the BVG API is easily viewed in a browser window, using the `locations` method.
@@ -120,4 +122,16 @@ Some useful states available from the sensor:
 - **type**: transit type
 - **line_name**: BVG route name
 
-All states can also have ``_next`` appended to their name to retrieve details for the following route. i.e. creating entity cards for both ``due_in`` and ``due_in_next`` would show the next two times.
+### Invalid/unavailable departures
+
+If the data for a departure is unable to be retrieved, the returned data will be populated with `n/a`
+
+# Fetching future departures
+
+By default, 4 upcoming departures are fetched. To fetch a given departure in the future, you can access youre sensor's `departures` object and then specify the desired state. So if you wanted to fetch the `due_in` time for the 2nd upcoming departure:
+
+```yaml
+{{ state_attr('sensor.u2_to_alexanderplatz', 'departures')[1].due_in }}
+```
+
+This method replaces the previously used `_next` that was appended to a state name. Accessing departure `0` in this way is equivalent to default states retrieved by the sensor.

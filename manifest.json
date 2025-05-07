@@ -2,7 +2,7 @@
   "domain": "bvg",
   "name": "BVG Berlin public transport sensor integration",
   "documentation": "https://github.com/zgbee/bvg-sensor",
-  "version": "0.4.2",
+  "version": "0.5.0",
   "requirements": [],
   "dependencies": [],
   "codeowners": ["@fluffykraken", "@disrupted", "@zgbee"]

@@ -126,9 +126,9 @@ Some useful states available from the sensor:
 
 If the data for a departure is unable to be retrieved, the returned data will be populated with `n/a`
 
-# Fetching future departures
+# Displaying future departures
 
-By default, 4 upcoming departures are fetched. To fetch a given departure in the future, you can access youre sensor's `departures` object and then specify the desired state. So if you wanted to fetch the `due_in` time for the 2nd upcoming departure:
+By default, 4 upcoming departures are fetched. To display a given departure in the future, you can access the sensor's `departures` object and then specify the desired state. So if you want to fetch the `due_in` time for the 2nd upcoming departure:
 
 ```yaml
 {{ state_attr('sensor.u2_to_alexanderplatz', 'departures')[1].due_in }}

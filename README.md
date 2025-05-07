@@ -8,7 +8,7 @@ During testing I found that the API frequently becomes unavailable, possibly to 
 This component uses the API endpoint that provides data from the BVG HAFAS API by [Jannis Redmann](https://github.com/derhuerst/).
 Without his fantastic work, this component would not possible!
 
-This fork from [disrupted/bvg-sensor](https://github.com/disrupted/bvg-sensor) has been updated to use the latest BVG API (currently [v6](https://v6.bvg.transport.rest/)), and retrieves details for two upcoming departures.
+This fork from [disrupted/bvg-sensor](https://github.com/disrupted/bvg-sensor) has been updated to use the latest BVG API (currently [v6](https://v6.bvg.transport.rest/)), and retrieves details for multiple upcoming departures.
 
 # Installation
 
